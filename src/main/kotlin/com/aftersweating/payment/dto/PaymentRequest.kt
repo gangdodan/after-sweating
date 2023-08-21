@@ -6,9 +6,7 @@ import lombok.Builder
 import lombok.NoArgsConstructor
 
 
-@AllArgsConstructor
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-class PaymentRequest(
+data class PaymentRequest(
     private val cid: String,
     private val partner_order_id: String,
     private val partner_user_id: String,
@@ -16,7 +14,7 @@ class PaymentRequest(
     private val quantity: Int,
     private val total_amount: Int,
     private val tax_free_amount: Int,
-    private val approval_url: Int,
+    private val approval_url: String,
     private val cancel_url: String,
     private val fail_url: String
 ) {

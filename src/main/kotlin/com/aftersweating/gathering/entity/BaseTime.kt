@@ -1,12 +1,11 @@
 package com.after.sweating.gathering.entity
 
-import java.sql.Time
+import jakarta.persistence.Embeddable
 import java.time.LocalDate
 import java.time.LocalTime
-import javax.persistence.Embeddable
 
 @Embeddable
-class DateTime(
+class BaseTime(
     date: LocalDate,
     time: LocalTime
 ) {

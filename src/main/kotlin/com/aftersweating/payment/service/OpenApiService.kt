@@ -3,8 +3,11 @@ package com.aftersweating.payment.service
 import com.after.sweating.common.exception.CustomException
 import com.after.sweating.common.exception.ErrorCode
 import com.aftersweating.attendance.dto.AttendanceRequest
+import com.aftersweating.payment.Payment
+import com.aftersweating.payment.dto.KakaopayApprovalResponse
 import com.aftersweating.payment.dto.KakaopayReadyResponse
 import com.aftersweating.payment.dto.PaymentRequest
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -22,51 +25,70 @@ import java.util.Objects
  */
 @Service
 class OpenApiService() {
-    fun requestRedirectURL(request: AttendanceRequest): String {
+    var readyResponse: KakaopayReadyResponse? = null
+    var approvalResponse: KakaopayApprovalResponse? = null
+    fun requestRedirectURL(request: AttendanceRequest): String? {
         val rt = RestTemplate()
-        var response: KakaopayReadyResponse? = null
-
         val uri: URI = URI.create("https://kapi.kakao.com/v1/payment/ready")
 
         val header = HttpHeaders()
         header.set("Authorization", "KakaoAK {SERVICE_APP_ADMIN_KEY}")
-        header.set("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
-        header.contentType = MediaType.APPLICATION_JSON
+        header.contentType = MediaType.APPLICATION_FORM_URLENCODED
 
-        val paymentRequest = PaymentRequest(
-            cid = "TC0ONETIME",
-            partner_order_id ="",
-            partner_user_id = "",
-            item_name ="",
-            quantity =0,
-            total_amount =0,
-            tax_free_amount =0,
-            approval_url =0,
-            cancel_url ="",
-            fail_url = ""
-        )
-//        val params = LinkedMultiValueMap<String, String>()
-//        params.add("cid", "TC0ONETIME");
-//        params.add("partner_order_id", "1001");
-//        params.add("partner_user_id", "gorany");
-//        params.add("item_name", "갤럭시S9");
-//        params.add("quantity", "1");
-//        params.add("total_amount", "2100");
-//        params.add("tax_free_amount", "100");
-//        params.add("approval_url", "http://localhost:8080/kakaoPaySuccess");
-//        params.add("cancel_url", "http://localhost:8080/kakaoPayCancel");
-//        params.add("fail_url", "http://localhost:8080/kakaoPaySuccessFail");
+        val param = LinkedMultiValueMap<String, String>()
+        param.add("cid", "TC0ONETIME")
+        param.add("partner_order_id", request.attendanceId)
+        param.add("partner_user_id", request.userId)
+        param.add("item_name", request.attendanceName)
+        param.add("quantity", request.quantity.toString())
+        param.add("total_amount",request.amount.toString())
+        param.add("tax_free_amount",request.amount.toString() )
+        param.add("approval_url", "http://localhost:8080/")
+        param.add("cancel_url", "http://localhost:8080/")
+        param.add("fail_url","http://localhost:8080/" )
 
         try {
-            response = rt.postForObject(
+            readyResponse = rt.postForObject(
                 uri,
-                HttpEntity(paymentRequest, header),
+                HttpEntity(param, header),
                 KakaopayReadyResponse::class.java
             )
         } catch (e: Exception) {
             throw CustomException(ErrorCode.DATA_NOT_FOUND, (""))
         }
-        if (response == null) return ""
-        return response.next_redirect_pc_url;
+        if (readyResponse == null) throw CustomException(ErrorCode.DATA_NOT_FOUND, (""))
+        return readyResponse?.next_redirect_pc_url;
+    }
+
+    fun requestApproval(pgToken: String){
+        val rt = RestTemplate()
+        val uri: URI = URI.create("https://kapi.kakao.com/v1/payment/approve")
+
+        val header = HttpHeaders()
+        header.set("Authorization", "KakaoAK {SERVICE_APP_ADMIN_KEY}")
+        header.contentType = MediaType.APPLICATION_FORM_URLENCODED
+
+        val param = LinkedMultiValueMap<String, String>()
+        param.add("cid", "TC0ONETIME")
+        param.add("tid", readyResponse?.tid)
+        param.add("partner_order_id", "")
+        param.add("partner_user_id", "request.userId")
+        param.add("pg_token", pgToken)
+
+        try {
+            approvalResponse = rt.postForObject(
+                uri,
+                HttpEntity(param, header),
+                KakaopayApprovalResponse::class.java
+            )
+        } catch (e: Exception) {
+            throw CustomException(ErrorCode.DATA_NOT_FOUND, (""))
+        }
+        if (readyResponse == null) throw CustomException(ErrorCode.DATA_NOT_FOUND, (""))
+        /**
+         * 1.payment 결제 정보 저장
+         * 2.결제완료 이벤트 날려서 참여신청 상태 대기 -> 완료로 변경
+         * */
+
     }
 }
